@@ -1,7 +1,3 @@
-# Main terraform file for spinning up S3 and Redshift within AWS. 
-# Sets permissions, ACLs, and public access block
-# Requires .aws/credentials CLI set up
-
 terraform {
   required_providers {
     aws = {
@@ -19,7 +15,7 @@ provider "aws" {
 # Configure redshift cluster
 resource "aws_redshift_cluster" "redshift" {
   cluster_identifier = "redshift-cluster-pipeline"
-  skip_final_snapshot = true 
+  skip_final_snapshot = true # must be set so we can destroy redshift with terraform destroy
   master_username    = "awsuser"
   master_password    = var.db_password
   node_type          = "dc2.large"
@@ -69,19 +65,28 @@ resource "aws_iam_role" "redshift_role" {
 # Create S3 bucket
 resource "aws_s3_bucket" "reddit-bucket" {
   bucket = var.s3_bucket
-  force_destroy = true 
+  force_destroy = true # will delete contents of bucket when we run terraform destroy
 }
 
 # Set S3 public access for ease of connection point
 resource "aws_s3_bucket_public_access_block" "s3_reddit-bucket_public_access_block" {
   bucket = aws_s3_bucket.reddit-bucket.id
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
+
+resource "aws_s3_bucket_ownership_controls" "s3_reddit-aws_s3_bucket_ownership_controls" {
+  bucket = aws_s3_bucket.reddit-bucket.id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
 # # Set access control of bucket to private
 # resource "aws_s3_bucket_acl" "s3_reddit-bucket_acl" {
 #   bucket = aws_s3_bucket.reddit-bucket.id
-#   acl    = "public-read"
+#   acl    = "private"
 # }
